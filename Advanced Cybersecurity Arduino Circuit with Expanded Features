@@ -1,0 +1,234 @@
+Advanced Cybersecurity Arduino Circuit with Expanded Features
+Attributed to: Benjamin Hunter Miller
+
+This expanded Arduino cybersecurity circuit will include additional layers of security and communication features for enhanced functionality. The circuit now integrates a camera for visual intrusion detection, Wi-Fi connectivity for remote monitoring, and physical tamper detection using sensors.
+
+Purpose:
+To detect unauthorized access attempts, capture potential intruders, and remotely notify the user while using multiple security layers like RFID authentication, PIN entry, and physical motion detection.
+
+Updated Components:
+Arduino Mega (for more I/O pins)
+RFID Reader Module (RC522)
+Keypad (4x4 matrix)
+Buzzer (for alerts)
+LED (for visual alerts)
+16x2 LCD (optional: for status display)
+Pushbutton (for reset or emergency action)
+PIR Motion Sensor (for physical tamper detection)
+ESP8266 Wi-Fi Module (for remote communication)
+Camera Module (ESP32-CAM or OV7670)
+Resistors (220Ω for the LED, 10kΩ for pull-down buttons)
+Breadboard and Jumper Wires
+Relay Module (optional: for controlling external devices like a door lock or alarm)
+Functional Description:
+RFID Reader: Detects RFID tags for authentication.
+Keypad: Accepts PIN input as a secondary layer of security.
+Buzzer/LED: Alerts when unauthorized access or an intrusion is detected.
+PIR Sensor: Detects physical motion near the system.
+ESP8266: Connects to a Wi-Fi network to send alerts and logs to a remote server.
+Camera Module: Captures images when intrusion is detected or unauthorized access is attempted.
+Relay: Controls external devices like door locks or sirens based on the system state.
+Expanded Circuit Blueprint:
+Connections for RFID Reader (RC522):
+
+SDA to Arduino Mega pin 10
+SCK to Arduino Mega pin 52
+MOSI to Arduino Mega pin 51
+MISO to Arduino Mega pin 50
+IRQ: Not connected
+GND to Arduino GND
+RST to Arduino Mega pin 9
+3.3V to Arduino 3.3V pin
+Connections for Keypad (4x4):
+
+Connect the rows to digital pins A0-A3.
+Connect the columns to digital pins 2-5.
+Use pull-down resistors for the inputs.
+Connections for Buzzer:
+
+Positive pin to digital pin 6.
+Negative pin to GND.
+Connections for LED:
+
+Positive pin to digital pin 7 (with a 220Ω resistor).
+Negative pin to GND.
+Connections for PIR Motion Sensor:
+
+VCC to Arduino Mega 5V.
+GND to GND.
+OUT to digital pin 8.
+Connections for ESP8266 Wi-Fi Module:
+
+TX to Arduino Mega RX1 (pin 19).
+RX to Arduino Mega TX1 (pin 18).
+VCC to Arduino 3.3V.
+GND to GND.
+Connections for Camera Module (ESP32-CAM or OV7670):
+
+Connect the camera module to an external 3.3V power supply or relay control.
+Control via Arduino with dedicated pins for taking snapshots based on intrusion detection.
+Relay Module (Optional for controlling external alarms or door locks):
+
+IN pin to digital pin 12.
+VCC to 5V, GND to GND.
+Connect NO (Normally Open) pin to external device (e.g., door lock).
+Schematic Diagram:
+scss
+Copy code
+                +-----------------------------------------------+
+                |                   Arduino Mega                |
+                +-----------------------------------------------+
+                       |                                  |
+    RFID Reader         |         Keypad                  |        PIR Sensor
++-------------------+   |     +----------------+          |  +-----------------+
+| SDA (Pin 10)      |---|     | Row1 (A0)      |          |  | OUT (Pin 8)      |
+| SCK (Pin 52)      |---|     | Row2 (A1)      |          |  | VCC (5V)         |
+| MOSI (Pin 51)     |---|     | Row3 (A2)      |          |  | GND (GND)        |
+| MISO (Pin 50)     |---|     | Row4 (A3)      |          |  +-----------------+
+| RST (Pin 9)       |---|     | Col1 (2)       |          |
+| GND (GND)         |---|     | Col2 (3)       |          |        ESP8266 Wi-Fi Module
+| 3.3V (3.3V)       |---|     | Col3 (4)       |          |     +----------------------+
++-------------------+         | Col4 (5)       |          |     | TX (Pin 19 - RX1)     |
+                               +----------------+          |     | RX (Pin 18 - TX1)     |
+                                                           |     | VCC (3.3V)           |
+            Buzzer                LED                     |     | GND (GND)            |
+      +--------------+       +--------------+             |     +----------------------+
+      | + (Pin 6)    |       | + (Pin 7)    |             |
+      | - (GND)      |       | - (GND)      |             |
+      +--------------+       +--------------+             |
+                                                           |
+                Camera Module (ESP32-CAM)                 Relay Module (Optional)
+       +-------------------------+              +------------------------------+
+       | VCC (3.3V)              |              | IN (Pin 12)                   |
+       | Control Pins (Digital)  |              | NO (External device)          |
+       +-------------------------+              +------------------------------+
+
+Advanced Code Outline:
+cpp
+Copy code
+#include <MFRC522.h>
+#include <Keypad.h>
+#include <LiquidCrystal_I2C.h>
+#include <SoftwareSerial.h>
+
+// Setup for RFID
+#define SS_PIN 10
+#define RST_PIN 9
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+// Setup for Keypad
+const byte ROWS = 4;
+const byte COLS = 4;
+char keys[ROWS][COLS] = {
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
+};
+byte rowPins[ROWS] = {A0, A1, A2, A3};
+byte colPins[COLS] = {2, 3, 4, 5};
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+
+// Setup for LCD
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Setup for PIR Sensor
+int pirPin = 8;
+bool motionDetected = false;
+
+// Setup for Wi-Fi Module (ESP8266)
+SoftwareSerial esp8266(18, 19); // RX, TX
+
+// Pin for LED, Buzzer, and Relay
+int ledPin = 7;
+int buzzerPin = 6;
+int relayPin = 12;
+
+void setup() {
+  Serial.begin(9600);
+  SPI.begin();
+  rfid.PCD_Init();
+  
+  pinMode(ledPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(relayPin, OUTPUT);
+  
+  pinMode(pirPin, INPUT);
+
+  lcd.init();
+  lcd.backlight();
+  
+  esp8266.begin(115200);  // Initialize ESP8266 at 115200 baud
+  
+  lcd.setCursor(0, 0);
+  lcd.print("System Ready");
+}
+
+void loop() {
+  // RFID Reading
+  if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Card Detected");
+    
+    // Replace with actual card authentication logic
+    delay(1000);
+    lcd.setCursor(0, 1);
+    lcd.print("Access Granted");
+    
+    // Trigger relay to open lock
+    digitalWrite(relayPin, HIGH);
+    delay(500);
+    digitalWrite(relayPin, LOW);
+
+    // Take a picture using the camera (trigger through a digital pin)
+    // Placeholder for Camera logic
+    
+    rfid.PICC_HaltA();
+  }
+
+  // Keypad Input
+  char key = keypad.getKey();
+  if (key) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Keypad Input:");
+    lcd.setCursor(0, 1);
+    lcd.print(key);
+    
+    // Add logic for keypad validation
+  }
+
+  // PIR Motion Sensor Detection
+  if (digitalRead(pirPin) == HIGH) {
+    if (!motionDetected) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Motion Detected!");
+      motionDetected = true;
+      
+      // Trigger alarm with buzzer and LED
+      digitalWrite(buzzerPin, HIGH);
+      digitalWrite(ledPin, HIGH);
+      
+      // Send an alert over Wi-Fi (placeholder for sending data via ESP8266)
+      esp8266.println("Motion Alert");
+      
+      delay(5000);  // Delay to keep the alert active
+      digitalWrite(buzzerPin, LOW);
+      digitalWrite(ledPin, LOW);
+    }
+  } else {
+    motionDetected = false;
+  }
+  
+  delay(100);
+}
+Working Process:
+RFID Reader checks for a valid RFID tag. If the tag is valid, it grants access by triggering the relay module to unlock the door.
+Keypad acts as a secondary authentication. If the correct PIN is entered, the system grants access.
+PIR Sensor detects motion near the secured area. If motion is detected, an alert is triggered, and the camera takes a snapshot.
+The ESP8266 Wi-Fi Module sends a notification to a remote server, enabling remote monitoring.
+The Camera Module takes a picture when unauthorized access or motion is detected, which can be stored or sent over the Wi-Fi module.
+Relay Module is used to control external devices, such as a door lock or siren, when access is granted or denied.
+This advanced cybersecurity circuit is ideal for use in an embedded or IoT environment, protecting physical assets and sending alerts during unauthorized access attempts.
